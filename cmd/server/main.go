@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/nguyenanhhao221/learn-pub-sub-starter/internal/pubsub"
+	"github.com/nguyenanhhao221/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -26,5 +28,14 @@ func main() {
 		log.Println("Shutting Down!")
 		os.Exit(1)
 		return
+	}
+
+	amqpCh, err := conn.Channel()
+	if err != nil {
+		log.Println("Error opening channel", err)
+	}
+
+	if err := pubsub.PublishJSON(amqpCh, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: true}); err != nil {
+		log.Printf("Error PublishJSON %v", err)
 	}
 }
