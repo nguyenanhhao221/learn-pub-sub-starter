@@ -29,7 +29,7 @@ func main() {
 	}
 	exchangeName := fmt.Sprintf("%s.%s", routing.PauseKey, username)
 	log.Printf("Using exchange name: %q", exchangeName)
-	_, queue, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, exchangeName, routing.PauseKey, 1)
+	_, queue, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, exchangeName, routing.PauseKey, pubsub.SimpleQueueTransient)
 	if err != nil {
 		log.Fatalf("could not subscribe to pause: %v", err)
 	}
