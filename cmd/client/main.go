@@ -16,6 +16,17 @@ func main() {
 	CONN_STRING := "amqp://guest:guest@localhost:5672/"
 	fmt.Println("Starting Peril client...")
 
+	// wait for ctrl+c
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt)
+
+	go func() {
+		<-signalChan
+		fmt.Println("\nShutdown signal received!")
+		fmt.Println("Goodbye!")
+		os.Exit(0)
+	}()
+
 	conn, err := amqp.Dial(CONN_STRING)
 	if err != nil {
 		log.Fatalf("Error connection to rabittmq: %v", err)
@@ -35,8 +46,4 @@ func main() {
 	}
 	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
-	// wait for ctrl+c
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	<-signalChan
 }
