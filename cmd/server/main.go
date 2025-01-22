@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
 
 	"github.com/nguyenanhhao221/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/nguyenanhhao221/learn-pub-sub-starter/internal/pubsub"
@@ -21,13 +23,15 @@ func main() {
 	log.Println("Connect to rabittmq successfully!")
 
 	// Capture exit signal and print exit message
-	// signalCh := make(chan os.Signal, 1)
-	// signal.Notify(signalCh, os.Interrupt)
-	// for range signalCh {
-	// 	log.Println("Shutting Down!")
-	// 	os.Exit(1)
-	// 	return
-	// }
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, os.Interrupt)
+
+	go func() {
+		<-signalCh
+		fmt.Println("\nShutdown signal received!")
+		fmt.Println("Goodbye!")
+		os.Exit(0)
+	}()
 
 	publishCh, err := conn.Channel()
 	if err != nil {
