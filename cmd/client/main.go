@@ -40,15 +40,17 @@ func main() {
 	}
 	exchangeName := fmt.Sprintf("%s.%s", routing.PauseKey, username)
 	log.Printf("Using exchange name: %q", exchangeName)
-	_, queue, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, exchangeName, routing.PauseKey, pubsub.SimpleQueueTransient)
+	_, pauseQueue, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, exchangeName, routing.PauseKey, pubsub.SimpleQueueTransient)
 	if err != nil {
 		log.Fatalf("could not subscribe to pause: %v", err)
 	}
-	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
+	fmt.Printf("Queue %v declared and bound!\n", pauseQueue.Name)
 
 	// Creating a new game state
 	gs := gamelogic.NewGameState(username)
-	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, queue.Name, routing.PauseKey, pubsub.SimpleQueueTransient, handlerPause(gs))
+
+	// Subscribe to the ExchangePerilDirectDirect and Pause queue
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, pauseQueue.Name, routing.PauseKey, pubsub.SimpleQueueTransient, handlerPause(gs))
 	if err != nil {
 		log.Fatalf("fail to SubscribeJSON : %v", err)
 	}
