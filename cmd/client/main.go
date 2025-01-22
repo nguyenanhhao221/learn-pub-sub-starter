@@ -107,17 +107,3 @@ func main() {
 		}
 	}
 }
-
-func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
-	return func(ps routing.PlayingState) {
-		defer fmt.Printf("> ")
-		gs.HandlePause(ps)
-	}
-}
-
-func handlerMove(gs *gamelogic.GameState) func(gamelogic.ArmyMove) {
-	return func(move gamelogic.ArmyMove) {
-		defer fmt.Printf("> ")
-		gs.HandleMove(move)
-	}
-}
