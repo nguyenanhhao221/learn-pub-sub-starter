@@ -38,6 +38,12 @@ func main() {
 		log.Println("Error opening channel", err)
 	}
 
+	// Declare and bind a queue to the new peril_topic exchange. It should be a durable queue named game_logs. The routing key should be game_logs.*. We'll go into detail on the routing key later.
+	_, _, err = pubsub.DeclareAndBind(conn, routing.ExchangePerilTopic, routing.GameLogSlug, routing.GameLogSlug+"."+"*", pubsub.SimpleQueueDurable)
+	if err != nil {
+		log.Fatalf("error when declare and bind to exchange: %v", err)
+	}
+
 	gamelogic.PrintServerHelp()
 	for {
 		input := gamelogic.GetInput()
