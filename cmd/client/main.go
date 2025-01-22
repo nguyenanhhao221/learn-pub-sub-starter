@@ -46,7 +46,12 @@ func main() {
 	}
 	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
+	// Creating a new game state
 	gs := gamelogic.NewGameState(username)
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, queue.Name, routing.PauseKey, pubsub.SimpleQueueTransient, handlerPause(gs))
+	if err != nil {
+		log.Fatalf("fail to SubscribeJSON : %v", err)
+	}
 
 	// keep the main process running
 	for {
@@ -80,4 +85,9 @@ func main() {
 			continue
 		}
 	}
+}
+
+func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
+	defer fmt.Printf("> ")
+	return gs.HandlePause
 }

@@ -64,3 +64,37 @@ func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
 	msg := amqp.Publishing{Body: jsonVal, ContentType: "application/json"}
 	return ch.PublishWithContext(ctx, exchange, key, false, false, msg)
 }
+
+func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, key string, simpleQueueType SimpleQueueType, handler func(T)) error {
+	// Make sure the queue exists and bound to the exchange
+	amqpCh, amqpQueue, err := DeclareAndBind(conn, exchange, queueName, key, simpleQueueType)
+	if err != nil {
+		return err
+	}
+
+	deliveryCh, err := amqpCh.Consume(amqpQueue.Name, "", false, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for delivery := range deliveryCh {
+			body := delivery.Body
+			var msg T
+			err := json.Unmarshal(body, &msg)
+			if err != nil {
+				fmt.Printf("failed to unmarshal message: %v\n", err)
+				continue
+			}
+			// Call the provided handler with the unmarshaled message
+			handler(msg)
+			// Acknowledge the message
+			err = delivery.Ack(false)
+			if err != nil {
+				fmt.Printf("failed to acknowledge message: %v\n", err)
+			}
+		}
+	}()
+
+	return nil
+}
