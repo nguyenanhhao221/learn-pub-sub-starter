@@ -4,8 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+)
+
+type AckType int
+
+const (
+	Ack AckType = iota
+	NackRequeue
+	NackDiscard
 )
 
 type SimpleQueueType int
@@ -65,7 +74,7 @@ func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
 	return ch.PublishWithContext(ctx, exchange, key, false, false, msg)
 }
 
-func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, key string, simpleQueueType SimpleQueueType, handler func(T)) error {
+func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, key string, simpleQueueType SimpleQueueType, handler func(T) AckType) error {
 	// Make sure the queue exists and bound to the exchange
 	amqpCh, amqpQueue, err := DeclareAndBind(conn, exchange, queueName, key, simpleQueueType)
 	if err != nil {
@@ -87,11 +96,27 @@ func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, key string
 				continue
 			}
 			// Call the provided handler with the unmarshaled message
-			handler(msg)
+			actType := handler(msg)
 			// Acknowledge the message
-			err = delivery.Ack(false)
-			if err != nil {
-				fmt.Printf("failed to acknowledge message: %v\n", err)
+			switch actType {
+			case Ack:
+				log.Println("Ack")
+				err = delivery.Ack(false)
+				if err != nil {
+					fmt.Printf("failed to acknowledge message: %v\n", err)
+				}
+			case NackRequeue:
+				log.Println("Nack re queue")
+				err = delivery.Nack(false, true)
+				if err != nil {
+					fmt.Printf("failed to nack and re queue message: %v\n", err)
+				}
+			case NackDiscard:
+				log.Println("Nack discard")
+				err = delivery.Nack(false, false)
+				if err != nil {
+					fmt.Printf("failed to nack and re queue message: %v\n", err)
+				}
 			}
 		}
 	}()
