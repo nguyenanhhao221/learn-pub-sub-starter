@@ -12,8 +12,9 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+const CONN_STRING = "amqp://guest:guest@localhost:5672/"
+
 func main() {
-	CONN_STRING := "amqp://guest:guest@localhost:5672/"
 	fmt.Println("Starting Peril client...")
 
 	// wait for ctrl+c
@@ -62,9 +63,15 @@ func main() {
 	}
 
 	// Declare Subscribe to the ExchangePerilTopic and the move queue
-	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, routing.ArmyMovesPrefix+"."+gs.GetUsername(), routing.ArmyMovesPrefix+".*", pubsub.SimpleQueueTransient, handlerMove(gs))
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, routing.ArmyMovesPrefix+"."+gs.GetUsername(), routing.ArmyMovesPrefix+".*", pubsub.SimpleQueueTransient, handlerMove(gs, publishCh))
 	if err != nil {
 		log.Fatalf("could not subscribe to pause: %v", err)
+	}
+
+	// Declare Subscribe to the ExchangePerilTopic and the war queue
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, routing.WarRecognitionsPrefix, routing.WarRecognitionsPrefix+".*", pubsub.SimpleQueueDurable, handlerWar(gs))
+	if err != nil {
+		log.Fatalf("could not subscribe to war queue: %v", err)
 	}
 
 	// keep the main process running
@@ -85,7 +92,7 @@ func main() {
 			if err != nil {
 				log.Printf("Error: %v", err)
 			}
-			err = pubsub.PublishJSON(publishCh, string(routing.ExchangePerilTopic), string(routing.ArmyMovesPrefix)+"."+gs.GetUsername(), move)
+			err = pubsub.PublishJSON(publishCh, string(routing.ExchangePerilTopic), string(routing.ArmyMovesPrefix)+"."+move.Player.Username, move)
 			if err != nil {
 				log.Printf("Error: %v\n", err)
 				continue
