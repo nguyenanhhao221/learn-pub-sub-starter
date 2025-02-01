@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/nguyenanhhao221/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/nguyenanhhao221/learn-pub-sub-starter/internal/pubsub"
@@ -44,20 +45,51 @@ func handlerMove(gs *gamelogic.GameState, publishCh *amqp.Channel) func(gamelogi
 	}
 }
 
-func handlerWar(gs *gamelogic.GameState) func(dw gamelogic.RecognitionOfWar) pubsub.AckType {
+func handlerWar(gs *gamelogic.GameState, publishCh *amqp.Channel) func(dw gamelogic.RecognitionOfWar) pubsub.AckType {
 	return func(dw gamelogic.RecognitionOfWar) pubsub.AckType {
 		defer fmt.Print("> ")
-		warOutcome, _, _ := gs.HandleWar(dw)
+		// Handling war outcome
+		warOutcome, winner, loser := gs.HandleWar(dw)
 		switch warOutcome {
 		case gamelogic.WarOutcomeNotInvolved:
 			return pubsub.NackRequeue
 		case gamelogic.WarOutcomeNoUnits:
 			return pubsub.NackDiscard
 		case gamelogic.WarOutcomeOpponentWon:
+			msg := routing.GameLog{
+				CurrentTime: time.Now(),
+				Message:     fmt.Sprintf("%s won a war against %s", winner, loser),
+				Username:    gs.Player.Username,
+			}
+			err := pubsub.PublishGob(publishCh, string(routing.ExchangePerilTopic), routing.GameLogSlug+"."+dw.Attacker.Username, msg)
+			if err != nil {
+				fmt.Printf("error: %s\n", err)
+				return pubsub.NackRequeue
+			}
 			return pubsub.Ack
 		case gamelogic.WarOutcomeYouWon:
+			msg := routing.GameLog{
+				CurrentTime: time.Now(),
+				Message:     fmt.Sprintf("%s won a war against %s", winner, loser),
+				Username:    gs.Player.Username,
+			}
+			err := pubsub.PublishGob(publishCh, string(routing.ExchangePerilTopic), routing.GameLogSlug+"."+dw.Attacker.Username, msg)
+			if err != nil {
+				fmt.Printf("error: %s\n", err)
+				return pubsub.NackRequeue
+			}
 			return pubsub.Ack
 		case gamelogic.WarOutcomeDraw:
+			msg := routing.GameLog{
+				CurrentTime: time.Now(),
+				Message:     fmt.Sprintf("A war between %s and %s resulted in a draw", winner, loser),
+				Username:    gs.Player.Username,
+			}
+			err := pubsub.PublishGob(publishCh, string(routing.ExchangePerilTopic), routing.GameLogSlug+"."+dw.Attacker.Username, msg)
+			if err != nil {
+				fmt.Printf("error: %s\n", err)
+				return pubsub.NackRequeue
+			}
 			return pubsub.Ack
 		}
 

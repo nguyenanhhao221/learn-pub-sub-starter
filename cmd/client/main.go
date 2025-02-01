@@ -69,7 +69,7 @@ func main() {
 	}
 
 	// Declare Subscribe to the ExchangePerilTopic and the war queue
-	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, routing.WarRecognitionsPrefix, routing.WarRecognitionsPrefix+".*", pubsub.SimpleQueueDurable, handlerWar(gs))
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, routing.WarRecognitionsPrefix, routing.WarRecognitionsPrefix+".*", pubsub.SimpleQueueDurable, handlerWar(gs, publishCh))
 	if err != nil {
 		log.Fatalf("could not subscribe to war queue: %v", err)
 	}
