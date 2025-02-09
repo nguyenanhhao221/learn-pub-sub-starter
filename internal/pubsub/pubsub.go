@@ -80,8 +80,40 @@ func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
 }
 
 func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, key string, simpleQueueType SimpleQueueType, handler func(T) AckType) error {
+	unmarshaller := func(body []byte) (T, error) {
+		var msg T
+		return msg, json.Unmarshal(body, &msg)
+	}
+	return subscribe(conn, exchange, queueName, key, simpleQueueType, handler, unmarshaller)
+}
+
+func SubscribeGob[T any](conn *amqp.Connection, exchange, queueName, key string, simpleQueueType SimpleQueueType, handler func(T) AckType) error {
+	unmarshaller := func(data []byte) (T, error) {
+		buffer := bytes.NewBuffer(data)
+		gobDecoder := gob.NewDecoder(buffer)
+		var msg T
+		return msg, gobDecoder.Decode(&msg)
+	}
+	return subscribe(conn, exchange, queueName, key, simpleQueueType, handler, unmarshaller)
+}
+
+func subscribe[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	simpleQueueType SimpleQueueType,
+	handler func(T) AckType,
+	unmarshaller func([]byte) (T, error),
+) error {
 	// Make sure the queue exists and bound to the exchange
 	amqpCh, amqpQueue, err := DeclareAndBind(conn, exchange, queueName, key, simpleQueueType)
+	if err != nil {
+		return err
+	}
+
+	// Limit the prefetch count for consumer to 10
+	err = amqpCh.Qos(10, 0, false)
 	if err != nil {
 		return err
 	}
@@ -94,14 +126,13 @@ func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, key string
 	go func() {
 		for delivery := range deliveryCh {
 			body := delivery.Body
-			var msg T
-			err := json.Unmarshal(body, &msg)
+			v, err := unmarshaller(body)
 			if err != nil {
 				fmt.Printf("failed to unmarshal message: %v\n", err)
 				continue
 			}
 			// Call the provided handler with the unmarshaled message
-			actType := handler(msg)
+			actType := handler(v)
 			// Acknowledge the message
 			switch actType {
 			case Ack:
